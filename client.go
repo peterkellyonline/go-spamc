@@ -155,7 +155,7 @@ func (s *Client) Process(msgpars ...string) (reply *SpamDOut, err error) {
 	return s.simpleCall(PROCESS, msgpars)
 }
 
-//Same as PROCESS, but return only modified headers, not body (new in protocol 1.4) 
+//Same as PROCESS, but return only modified headers, not body (new in protocol 1.4)
 func (s *Client) Headers(msgpars ...string) (reply *SpamDOut, err error) {
 	return s.simpleCall(HEADERS, msgpars)
 }
@@ -263,8 +263,8 @@ func (s *Client) call(cmd string, msgpars []string, onData FnCallback, extraHead
 		cmd = REPORT
 	}
 
-	// Create a new connection
-	stream, err := net.Dial("tcp", s.Host)
+	// Create a new connection, with a reasonable timeout
+	stream, err := net.DialTimeout("tcp", s.Host, time.Duration(DEFAULT_TIMEOUT)*time.Second)
 
 	if err != nil {
 		err = errors.New("Connection dial error to spamd: " + err.Error())
@@ -317,7 +317,7 @@ func processResponse(cmd string, data *bufio.Reader) (returnObj *SpamDOut, err e
 	var result = r.FindStringSubmatch(lineStr)
 	if len(result) < 4 {
 		if cmd != "SKIP" {
-			err = errors.New("spamd unreconized reply:" + lineStr)
+			err = errors.New("spamd unrecognized reply:" + lineStr)
 		} else {
 			returnObj.Code = EX_OK
 			returnObj.Message = "SKIPPED"
