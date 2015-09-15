@@ -429,60 +429,63 @@ func processResponse(cmd string, data *bufio.Reader) (returnObj *SpamDOut, err e
 					lineStr = string(line)
 
 					//TXT Table found, prepare to parse..
-					if lineStr[0:4] == TABLE_MARK {
-
-						section := []map[string]interface{}{}
-						tt := 0
-						for {
-							line, _, err = data.ReadLine()
-							//Stop read the text table if last line or Void line
-							if err == io.EOF || err != nil || len(line) == 0 {
-								if err == io.EOF {
-									err = nil
+					// Note: this line can be blank too, so defend against slice out of bounds panic
+					if len(lineStr) >= 4 {
+						if lineStr[0:4] == TABLE_MARK {
+	
+							section := []map[string]interface{}{}
+							tt := 0
+							for {
+								line, _, err = data.ReadLine()
+								//Stop read the text table if last line or Void line
+								if err == io.EOF || err != nil || len(line) == 0 {
+									if err == io.EOF {
+										err = nil
+									}
+									break
 								}
-								break
-							}
-							//Parsing
-							lineStr = string(line)
-							spc := 2
-							if lineStr[0:1] == "-" {
-								spc = 1
-							}
-							lineStr = strings.Replace(lineStr, " ", SPLIT, spc)
-							lineStr = strings.Replace(lineStr, " ", SPLIT, 1)
-							if spc > 1 {
-								lineStr = " " + lineStr[2:]
-							}
-							x := strings.Split(lineStr, SPLIT)
-							if lineStr[1:3] == SPLIT {
-								section[tt-1]["message"] = fmt.Sprintf("%v %v", section[tt-1]["message"], strings.TrimSpace(lineStr[5:]))
-							} else {
-								if len(x) != 0 {
-									message := strings.TrimSpace(x[2])
-									score, _ := strconv.ParseFloat(strings.TrimSpace(x[0]), 64)
-
-									section = append(section, map[string]interface{}{
-										"score":   score,
-										"symbol":  x[1],
-										"message": message,
-									})
-
-									tt++
+								//Parsing
+								lineStr = string(line)
+								spc := 2
+								if lineStr[0:1] == "-" {
+									spc = 1
+								}
+								lineStr = strings.Replace(lineStr, " ", SPLIT, spc)
+								lineStr = strings.Replace(lineStr, " ", SPLIT, 1)
+								if spc > 1 {
+									lineStr = " " + lineStr[2:]
+								}
+								x := strings.Split(lineStr, SPLIT)
+								if lineStr[1:3] == SPLIT {
+									section[tt-1]["message"] = fmt.Sprintf("%v %v", section[tt-1]["message"], strings.TrimSpace(lineStr[5:]))
+								} else {
+									if len(x) != 0 {
+										message := strings.TrimSpace(x[2])
+										score, _ := strconv.ParseFloat(strings.TrimSpace(x[0]), 64)
+	
+										section = append(section, map[string]interface{}{
+											"score":   score,
+											"symbol":  x[1],
+											"message": message,
+										})
+	
+										tt++
+									}
 								}
 							}
+							if REPORT_IGNOREWARNING == cmd {
+								nsection := []map[string]interface{}{}
+								for _, c := range section {
+									if c["score"].(float64) != 0 {
+										nsection = append(nsection, c)
+									}
+								}
+								section = nsection
+							}
+	
+							returnObj.Vars["report"] = section
+							break
 						}
-						if REPORT_IGNOREWARNING == cmd {
-							nsection := []map[string]interface{}{}
-							for _, c := range section {
-								if c["score"].(float64) != 0 {
-									nsection = append(nsection, c)
-								}
-							}
-							section = nsection
-						}
-
-						returnObj.Vars["report"] = section
-						break
 					}
 				}
 
